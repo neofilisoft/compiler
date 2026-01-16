@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOC Real-time</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background-color: #1e1e1e; color: white; }
+        #header { padding: 10px; background-color: #2d2d2d; display: flex; justify-content: space-between; align-items: center; }
+        #container { display: flex; flex: 1; overflow: hidden; }
+        #editor-container { width: 60%; height: 100%; }
+        
+        #terminal-wrapper { width: 40%; display: flex; flex-direction: column; border-left: 1px solid #444; background-color: #1e1e1e; }
+        #output-container { flex: 1; padding: 10px; font-family: 'Consolas', monospace; overflow-y: auto; white-space: pre-wrap; color: #cccccc; }
+        
+        #input-area { display: flex; border-top: 1px solid #444; padding: 5px; background: #252526; align-items: center; }
+        #term-input { flex: 1; background: transparent; border: none; color: white; font-family: 'Consolas', monospace; outline: none; margin-left: 5px; }
+        
+        button { background-color: #0e639c; color: white; border: none; padding: 8px 16px; cursor: pointer; }
+        button:hover { background-color: #1177bb; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <span>Neofilisoft Open compiler</span>
+        <button onclick="runCode()">Run Code ▶</button>
+    </div>
+
+    <div id="container">
+        <div id="editor-container"></div>
+        
+        <div id="terminal-wrapper">
+            <div id="output-container"></div>
+            <div id="input-area">
+                <span style="color: #00ff00;">>_</span>
+                <input type="text" id="term-input" placeholder="Type here and press Enter..." disabled>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
+    <script>
+        const socket = io();
+        let editor;
+        const outputDiv = document.getElementById('output-container');
+        const inputField = document.getElementById('term-input');
+
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: "# Python compiler (interpreter)\nprint('Hello World')",
+                language: 'python',
+                theme: 'vs-dark',
+                automaticLayout: true
+            });
+        });
+
+        socket.on('term_output', function(msg) {
+            outputDiv.textContent += msg.data;
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        });
+
+        socket.on('term_stop', function(msg) {
+            outputDiv.textContent += msg.data;
+            inputField.disabled = true;
+            inputField.value = "";
+        });
+
+        function runCode() {
+            outputDiv.textContent = ""; 
+            inputField.disabled = false;
+            inputField.focus();
+            const code = editor.getValue();
+            socket.emit('run_code', { code: code });
+        }
+
+        inputField.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                const text = inputField.value;
+                outputDiv.textContent += text + "\n"; 
+                socket.emit('send_input', { input: text });
+                inputField.value = ""; 
+            }
+        });
+    </script>
+</body>
+</html>
