@@ -4,27 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neofilisoft Open Compiler</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background-color: #1e1e1e; color: white; }
-        #header { padding: 10px 20px; background-color: #252526; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3e3e42; }
-        #container { display: flex; flex: 1; overflow: hidden; }
-        #editor-container { width: 60%; height: 100%; }
-        
-        #terminal-wrapper { width: 40%; display: flex; flex-direction: column; border-left: 1px solid #3e3e42; background-color: #1e1e1e; }
-        #output-container { flex: 1; padding: 15px; font-family: 'Consolas', 'Courier New', monospace; overflow-y: auto; white-space: pre-wrap; color: #d4d4d4; font-size: 14px; 
-                 user-select: text; -webkit-user-select: text; cursor: text; }
-        
-        #input-area { display: flex; border-top: 1px solid #3e3e42; padding: 10px; background: #2d2d2d; align-items: center; }
-        #term-input { flex: 1; background: transparent; border: none; color: white; font-family: 'Consolas', monospace; outline: none; margin-left: 10px; font-size: 14px; }
-        
-        select { background-color: #3c3c3c; color: white; border: 1px solid #555; padding: 5px 10px; border-radius: 4px; margin-right: 15px; outline: none; cursor: pointer; }
-        
-        button { background-color: #0e639c; color: white; border: none; padding: 6px 16px; border-radius: 2px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 5px; }
-        button:hover { background-color: #1177bb; }
-        
-        .logo { font-weight: bold; font-size: 18px; color: #007acc; margin-right: 20px; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -50,90 +30,16 @@
 
     <div id="container">
         <div id="editor-container"></div>
-        
         <div id="terminal-wrapper">
             <div id="output-container"></div>
             <div id="input-area">
-                <span style="color: #ffffff;">>/</span>
-                <input type="text" id="term-input" placeholder="Type input here..." disabled>
+                <span style="color: #ffffff;">>/:</span>
+                <input type="text" id="term-input" placeholder="Type input here and then click Run">
             </div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
-    <script>
-        const socket = io();
-        let editor;
-        const outputDiv = document.getElementById('output-container');
-        const inputField = document.getElementById('term-input');
-        const langSelect = document.getElementById('lang-select');
-
-        const templates = {
-            python: "import time\n\nprint('Hello from NOC!')\nname = input('What is your name? ')\nprint(f'Nice to meet you, {name}!')",
-            cpp: "#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << \"Hello from C++!\" << endl;\n    return 0;\n}",
-            csharp: "using System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine(\"Hello from C#!\");\n    }\n}",
-            java: "import java.util.Scanner;\n\npublic class Main {\n    public static void Main(String[] args) {\n        System.out.println(\"Hello from Java!\");\n    }\n}",
-            javascript: "console.log('Hello from Node.js!');",
-            sql: "-- SQLite In-Memory Database\nCREATE TABLE Users (ID INT, Name TEXT);\nINSERT INTO Users VALUES (1, 'Neo'), (2, 'Trinity');\nSELECT * FROM Users;",
-            rust: "fn main() {\n    println!(\"Hello from Rust!\");\n}",
-            lua: "print('Hello from Lua!')",
-            zig: "const std = @import(\"std\");\n\npub fn main() void {\n    std.debug.print(\"Hello from Zig!\\n\", .{});\n}",
-            scala: "object Main extends App {\n  println(\"Hello from Scala!\")\n}",
-            go: "package main\nimport \"fmt\"\n\nfunc main() {\n    fmt.Println(\"Hello from Golang!\")\n}"
-        };
-
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
-            editor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: templates['python'],
-                language: 'python',
-                theme: 'vs-dark',
-                automaticLayout: true,
-                fontSize: 14
-            });
-        });
-
-        function changeLanguage() {
-            const lang = langSelect.value;
-            let monacoLang = lang;
-            
-            // Map select value to Monaco language ID
-            if (lang === 'csharp') monacoLang = 'csharp';
-            if (lang === 'js') monacoLang = 'javascript';
-            
-            monaco.editor.setModelLanguage(editor.getModel(), monacoLang);
-            editor.setValue(templates[lang]);
-            outputDiv.textContent = `[Switched to ${lang}]\n`;
-        }
-
-        socket.on('term_output', function(msg) {
-            outputDiv.textContent += msg.data;
-            outputDiv.scrollTop = outputDiv.scrollHeight;
-        });
-
-        socket.on('term_stop', function(msg) {
-            outputDiv.textContent += msg.data;
-            inputField.disabled = true;
-            inputField.value = "";
-        });
-
-        function runCode() {
-            outputDiv.textContent = "> Running...\n"; 
-            inputField.disabled = false;
-            inputField.focus();
-            const code = editor.getValue();
-            const lang = langSelect.value;
-            socket.emit('run_code', { code: code, language: lang });
-        }
-
-        inputField.addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                const text = inputField.value;
-                outputDiv.textContent += text + "\n"; 
-                socket.emit('send_input', { input: text });
-                inputField.value = ""; 
-            }
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
