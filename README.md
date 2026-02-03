@@ -1,5 +1,5 @@
 # Neofilisoft Open Compiler
-# Code Compiler & Editor (IDE)
+# Code Editor & Compiler (IDE)
 - Python
 - C++
 - C#
